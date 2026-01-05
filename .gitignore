@@ -1,0 +1,5 @@
+build/
+.vscode/
+*.user
+Thumbs.db
+dist/

@@ -125,4 +125,4 @@ Full credits: [Credits](CREDITS.md)
 
 ## Copyright
 
-© 2025 Dol Bot (rep0z-debug). All rights reserved.
+© 2026 Dol Bot (rep0z-debug). All rights reserved.

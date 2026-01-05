@@ -94,9 +94,14 @@ public:
         if (!result) return {0.0, 0.0};
         
         double rad = core::coords::to_radians(result->direction_angle);
+        // Corrected math:
+        // North (0 rad) -> x=0, z=-dist
+        // East (PI/2 rad) -> x=dist, z=0
+        // South (PI rad) -> x=0, z=dist
+        // West (-PI/2 rad) -> x=-dist, z=0
         return {
-            -std::sin(rad) * target_distance,
-            std::cos(rad) * target_distance
+            std::sin(rad) * target_distance,
+            -std::cos(rad) * target_distance
         };
     }
 

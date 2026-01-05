@@ -10,7 +10,7 @@ namespace dolbot::domain {
 struct Fossil {
     int x;
     
-    static constexpr int MIN_X = 1;
+    static constexpr int MIN_X = 0;
     static constexpr int MAX_X = 15;
     
     [[nodiscard]] bool is_valid() const {
@@ -18,11 +18,11 @@ struct Fossil {
     }
     
     [[nodiscard]] double sector_start_angle() const {
-        return (x - 1) * (2.0 * core::coords::PI / 16.0) - core::coords::PI;
+        return x * (2.0 * core::coords::PI / 16.0) - core::coords::PI;
     }
     
     [[nodiscard]] double sector_end_angle() const {
-        return x * (2.0 * core::coords::PI / 16.0) - core::coords::PI;
+        return (x + 1) * (2.0 * core::coords::PI / 16.0) - core::coords::PI;
     }
     
     [[nodiscard]] double sector_center_angle() const {

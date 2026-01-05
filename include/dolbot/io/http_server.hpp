@@ -53,36 +53,45 @@ private:
     }
     
     void handle_request(QTcpSocket* socket) {
-        QByteArray data = socket->readAll();
-        QString request = QString::fromUtf8(data);
-        
-        QStringList lines = request.split("\r\n");
-        if (lines.isEmpty()) {
-            send_response(socket, 400, "Bad Request", QJsonObject());
+        // Simple line-based buffering
+        while (socket->canReadLine()) {
+            QByteArray data = socket->readLine();
+            QString line = QString::fromUtf8(data).trimmed();
+
+            if (line.isEmpty()) continue;
+
+            QStringList parts = line.split(" ");
+            if (parts.size() < 2) {
+                // Not a valid request line, might be headers or body which we ignore for this simple API
+                // But if it's the first line and invalid, it's an error.
+                // For simplicity, we assume the first line we read is the request line.
+                // If we get garbage, we might want to close or ignore.
+                // Given the protocol is simple HTTP GET/POST, we just check if it looks like a request.
+                 continue;
+            }
+
+            QString method = parts[0];
+            QString path = parts[1];
+
+            if (method == "GET" && path == "/api/v1/stronghold") {
+                handle_stronghold_request(socket);
+            } else if (method == "GET" && path == "/api/v1/status") {
+                handle_status_request(socket);
+            } else if (method == "POST" && path == "/api/v1/reset") {
+                handle_reset_request(socket);
+            } else if (method == "POST" && path == "/api/v1/undo") {
+                handle_undo_request(socket);
+            } else if (method == "GET" && path == "/api/v1/throws") {
+                handle_throws_request(socket);
+            } else {
+                send_response(socket, 404, "Not Found", QJsonObject{{"error", "Endpoint not found"}});
+            }
+
+            // For this simple server, we process one request per connection and close it (or expect it to close)
+            // But browsers might keep-alive. We can just process the first valid request line and ignore the rest/headers.
+            // A more robust server would parse headers, content-length etc.
+            // But this fix ensures we at least read a full line instead of readAll() partial packets.
             return;
-        }
-        
-        QStringList first_line = lines[0].split(" ");
-        if (first_line.size() < 2) {
-            send_response(socket, 400, "Bad Request", QJsonObject());
-            return;
-        }
-        
-        QString method = first_line[0];
-        QString path = first_line[1];
-        
-        if (method == "GET" && path == "/api/v1/stronghold") {
-            handle_stronghold_request(socket);
-        } else if (method == "GET" && path == "/api/v1/status") {
-            handle_status_request(socket);
-        } else if (method == "POST" && path == "/api/v1/reset") {
-            handle_reset_request(socket);
-        } else if (method == "POST" && path == "/api/v1/undo") {
-            handle_undo_request(socket);
-        } else if (method == "GET" && path == "/api/v1/throws") {
-            handle_throws_request(socket);
-        } else {
-            send_response(socket, 404, "Not Found", QJsonObject{{"error", "Endpoint not found"}});
         }
     }
     

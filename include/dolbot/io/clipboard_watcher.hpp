@@ -10,6 +10,7 @@
 #include <mutex>
 #include "dolbot/core/signal.hpp"
 #include "dolbot/io/f3c_parser.hpp"
+#include "dolbot/domain/fossil_divine.hpp"
 
 namespace dolbot::io {
 
@@ -51,6 +52,10 @@ public:
         return raw_data_.connect(std::move(callback));
     }
 
+    core::ConnectionHandle on_fossil_detected(std::function<void(const domain::FossilLocation&)> callback) {
+        return fossil_detected_.connect(std::move(callback));
+    }
+
 private slots:
     void on_clipboard_changed() {
         if (!running_) return;
@@ -81,20 +86,33 @@ private:
         std::string content = text.toStdString();
         
         auto parsed = F3CParser::parse(content);
-        if (!parsed) return;
-        
-        {
-            std::lock_guard lock(mutex_);
-            if (content == last_processed_ && last_process_time_.elapsed() < 1000) return;
-            last_processed_ = content;
-            last_process_time_.start();
+        if (parsed) {
+            {
+                std::lock_guard lock(mutex_);
+                if (content == last_processed_ && last_process_time_.elapsed() < 1000) return;
+                last_processed_ = content;
+                last_process_time_.start();
+            }
+
+            raw_data_.fire(*parsed);
+
+            auto throw_data = F3CParser::to_throw(*parsed, crosshair_correction_);
+            if (throw_data) {
+                throw_detected_.fire(*throw_data);
+            }
+            return;
         }
-        
-        raw_data_.fire(*parsed);
-        
-        auto throw_data = F3CParser::to_throw(*parsed, crosshair_correction_);
-        if (throw_data) {
-            throw_detected_.fire(*throw_data);
+
+        // Try parsing fossil
+        auto fossil = domain::FossilDivine::parse_f3i_bone(content);
+        if (fossil) {
+            {
+                std::lock_guard lock(mutex_);
+                if (content == last_processed_ && last_process_time_.elapsed() < 1000) return;
+                last_processed_ = content;
+                last_process_time_.start();
+            }
+            fossil_detected_.fire(*fossil);
         }
     }
     
@@ -109,6 +127,7 @@ private:
     
     core::Signal<const domain::EyeThrow&> throw_detected_;
     core::Signal<const ParsedF3C&> raw_data_;
+    core::Signal<const domain::FossilLocation&> fossil_detected_;
 };
 
 } // namespace dolbot::io

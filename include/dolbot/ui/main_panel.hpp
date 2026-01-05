@@ -246,6 +246,9 @@ private:
         blind_panel_->hide();
         content_layout->addWidget(blind_panel_);
         
+        divine_panel_ = new DivinePanel(content);
+        content_layout->addWidget(divine_panel_);
+
         throw_list_ = new ThrowList(content);
         content_layout->addWidget(throw_list_, 1);
         
@@ -520,6 +523,23 @@ private:
             }
         });
         
+        fossil_conn_ = clipboard_watcher_->on_fossil_detected([this](const domain::FossilLocation& fossil) {
+            if (!core::Config::instance().settings().enable_divine) {
+                status_bar_->set_status("Fossil divine is disabled in settings");
+                return;
+            }
+
+            divine_panel_->set_fossil(fossil.segment, fossil.x, fossil.z);
+            status_bar_->set_status(QString("Fossil data detected (segment %1)").arg(fossil.segment + 1));
+
+            domain::Fossil f_ctx;
+            f_ctx.x = fossil.segment;
+            triangulator_->set_fossil(f_ctx);
+
+            io::SoundManager::instance().play_success();
+        });
+
+
         result_conn_ = triangulator_->on_result_changed([this](const domain::TriangulationResult& r) {
             result_display_->update_result(r);
             throw_list_->update_throws(triangulator_->throws());
@@ -692,6 +712,7 @@ private slots:
     void on_reset() {
         triangulator_->reset();
         blind_panel_->hide();
+        divine_panel_->clear();
         io::SettingsStore::instance().clear_throws();
         io::SettingsStore::instance().save_redo_stack(triangulator_->redo_stack());
         
@@ -860,9 +881,11 @@ private:
     QPushButton* boat_mode_btn_;
     ThrowList* throw_list_;
     BlindPanel* blind_panel_;
+    DivinePanel* divine_panel_;
     StatusBar* status_bar_;
     
     core::ConnectionHandle clip_conn_;
+    core::ConnectionHandle fossil_conn_;
     core::ConnectionHandle result_conn_;
     core::ConnectionHandle config_conn_;
     core::ConnectionHandle hotkey_conn_;
